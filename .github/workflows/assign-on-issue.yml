@@ -18,7 +18,7 @@ jobs:
               headers: {
                 'Content-Type': 'application/json',
                 'x-ddn-project-id': '${{ secrets.DDN_PROJECT_ID }}',
-                'authorization': 'api-key ${{ secrets.PROMPTQL_API_KEY }}'
+                'authorization': 'api-key ${{ secrets.TANMAI_PROMPTQL_API_KEY }}'
               },
               body: JSON.stringify({
                 input: [{
