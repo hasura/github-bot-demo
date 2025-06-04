@@ -1,0 +1,29 @@
+name: Assign Issue Based on Webhook
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call webhook to get user
+        id: call_webhook
+        run: |
+          response=$(curl -s -X POST https://your-webhook-url.com/assign \
+            -H "Content-Type: application/json" \
+            -H "x-ddn-project-id: ${{ secrets.DDN_PROJECT_ID }}" \
+            -H "authorization: api-key ${{ secrets.PROMPTQL_API_KEY }}" \
+            -d '{"issue_title": "${{ github.event.issue.title }}", "issue_body": "${{ github.event.issue.body }}"}')
+          echo "Webhook response: $response"
+          # Assuming response is a JSON like: { "assignee": "username" }
+          assignee=$(echo $response | jq -r .assignee)
+          echo "assignee=$assignee" >> $GITHUB_OUTPUT
+
+      - name: Assign issue
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          assignees: ${{ steps.call_webhook.outputs.assignee }}
