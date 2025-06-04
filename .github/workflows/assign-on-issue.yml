@@ -22,32 +22,20 @@ jobs:
           data_length=$(echo $response | jq -r '.output.data | length // 0')
           echo "Number of assignees returned: $data_length"
 
-          # Extract assignees based on available data
+          # Extract first assignee from available data
           assignees=""
           if [ "$data_length" -gt 0 ]; then
-            assignee1=$(echo $response | jq -r '.output.data[0].name // empty')
-            if [ ! -z "$assignee1" ] && [ "$assignee1" != "null" ]; then
-              assignees="$assignee1"
-              echo "First assignee: $assignee1"
-            fi
-          fi
-
-          if [ "$data_length" -gt 1 ]; then
-            assignee2=$(echo $response | jq -r '.output.data[1].name // empty')
-            if [ ! -z "$assignee2" ] && [ "$assignee2" != "null" ]; then
-              if [ ! -z "$assignees" ]; then
-                assignees="$assignees,$assignee2"
-              else
-                assignees="$assignee2"
-              fi
-              echo "Second assignee: $assignee2"
+            assignee=$(echo $response | jq -r '.output.data[0].name // empty')
+            if [ ! -z "$assignee" ] && [ "$assignee" != "null" ]; then
+              assignees="$assignee"
+              echo "Assignee: $assignee"
             fi
           fi
 
           if [ -z "$assignees" ]; then
-            echo "No valid assignees found"
+            echo "No valid assignee found"
           else
-            echo "Final assignees list: $assignees"
+            echo "Final assignee: $assignees"
           fi
 
           echo "assignees=$assignees" >> $GITHUB_OUTPUT
@@ -55,29 +43,21 @@ jobs:
       - name: Assign issue
         if: steps.call_webhook.outputs.assignees != ''
         run: |
-          assignees_list="${{ steps.call_webhook.outputs.assignees }}"
-          echo "Attempting to assign: $assignees_list"
+          assignee="${{ steps.call_webhook.outputs.assignees }}"
+          echo "Attempting to assign: $assignee"
 
-          # Convert comma-separated assignees to JSON array format
-          if [ ! -z "$assignees_list" ]; then
-            json_assignees=$(echo "$assignees_list" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')
-            echo "JSON format: [$json_assignees]"
+          response=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/assignees \
+            -d "{\"assignees\": [\"$assignee\"]}")
 
-            response=$(curl -s -X POST \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/assignees \
-              -d "{\"assignees\": [$json_assignees]}")
+          echo "Assignment response: $response"
 
-            echo "Assignment response: $response"
-
-            # Check if assignment was successful
-            if echo "$response" | jq -e '.message' > /dev/null 2>&1; then
-              echo "Assignment failed: $(echo "$response" | jq -r '.message')"
-              exit 1
-            else
-              echo "Successfully assigned issue to: $assignees_list"
-            fi
+          # Check if assignment was successful
+          if echo "$response" | jq -e '.message' > /dev/null 2>&1; then
+            echo "Assignment failed: $(echo "$response" | jq -r '.message')"
+            exit 1
           else
-            echo "No assignees to assign"
+            echo "Successfully assigned issue to: $assignee"
           fi
