@@ -15,7 +15,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "x-ddn-project-id: ${{ secrets.DDN_PROJECT_ID }}" \
             -H "authorization: api-key ${{ secrets.PROMPTQL_API_KEY }}" \
-            -d '{"description": "${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"}')
+            -d '{"input": [{"description": "${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"}]}')
           echo "Webhook response: $response"
 
           # Check if output.data exists and has elements
