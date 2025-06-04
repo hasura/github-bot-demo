@@ -1,0 +1,9 @@
+# Kubernetes Deployment Configuration
+# Defines deployment specs for microservices:
+# - Container specifications and resource limits
+# - Health checks and readiness probes
+# - Environment variables and secrets mounting
+# - Service mesh configuration (Istio)
+# - Auto-scaling policies (HPA/VPA)
+# Critical for: Production deployment, scaling, rolling updates
+# Monitoring: Prometheus metrics, Grafana dashboards
