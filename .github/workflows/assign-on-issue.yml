@@ -10,35 +10,48 @@ jobs:
     steps:
       - name: Call webhook to get user
         id: call_webhook
-        run: |
-          response=$(curl -s -X POST ${{ secrets.WEBHOOK_URL }} \
-            -H "Content-Type: application/json" \
-            -H "x-ddn-project-id: ${{ secrets.DDN_PROJECT_ID }}" \
-            -H "authorization: api-key ${{ secrets.PROMPTQL_API_KEY }}" \
-            -d '{"input": [{"description": "${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"}]}')
-          echo "Webhook response: $response"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const response = await fetch('${{ secrets.WEBHOOK_URL }}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-ddn-project-id': '${{ secrets.DDN_PROJECT_ID }}',
+                'authorization': 'api-key ${{ secrets.PROMPTQL_API_KEY }}'
+              },
+              body: JSON.stringify({
+                input: [{
+                  description: `${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}`
+                }]
+              })
+            });
 
-          # Check if output.data exists and has elements
-          data_length=$(echo $response | jq -r '.output.data | length // 0')
-          echo "Number of assignees returned: $data_length"
+            const data = await response.json();
+            console.log('Webhook response:', JSON.stringify(data, null, 2));
 
-          # Extract first assignee from available data
-          assignees=""
-          if [ "$data_length" -gt 0 ]; then
-            assignee=$(echo $response | jq -r '.output.data[0].name // empty')
-            if [ ! -z "$assignee" ] && [ "$assignee" != "null" ]; then
-              assignees="$assignee"
-              echo "Assignee: $assignee"
-            fi
-          fi
+            // Check if output.data exists and has elements
+            const assigneeData = data?.output?.data || [];
+            console.log(`Number of assignees returned: ${assigneeData.length}`);
 
-          if [ -z "$assignees" ]; then
-            echo "No valid assignee found"
-          else
-            echo "Final assignee: $assignees"
-          fi
+            // Extract first assignee from available data
+            let assignees = "";
+            if (assigneeData.length > 0) {
+              const assignee = assigneeData[0]?.name;
+              if (assignee && assignee !== "null") {
+                assignees = assignee;
+                console.log(`Assignee: ${assignee}`);
+              }
+            }
 
-          echo "assignees=$assignees" >> $GITHUB_OUTPUT
+            if (!assignees) {
+              console.log("No valid assignee found");
+            } else {
+              console.log(`Final assignee: ${assignees}`);
+            }
+
+            core.setOutput('assignees', assignees);
+            return assignees;
 
       - name: Assign issue
         if: steps.call_webhook.outputs.assignees != ''
